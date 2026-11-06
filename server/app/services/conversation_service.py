@@ -103,3 +103,41 @@ def add_message(
 
     _write_conversations(conversations)
     return conversation
+
+
+def add_exchange(
+    conversation_id: str,
+    user_content: str,
+    assistant_content: str,
+) -> dict | None:
+    """Save a user message and its assistant reply in one JSON write."""
+    conversations = _read_conversations()
+    conversation = next(
+        (item for item in conversations if item["id"] == conversation_id),
+        None,
+    )
+    if conversation is None:
+        return None
+
+    now = datetime.now(timezone.utc).isoformat()
+    user_message = {
+        "id": str(uuid4()),
+        "role": "user",
+        "content": user_content,
+        "timestamp": now,
+    }
+    assistant_message = {
+        "id": str(uuid4()),
+        "role": "assistant",
+        "content": assistant_content,
+        "timestamp": now,
+    }
+    conversation["messages"].extend([user_message, assistant_message])
+    conversation["updated_at"] = now
+
+    if conversation["title"] == "New conversation":
+        title = " ".join(user_content.split())
+        conversation["title"] = title[:60] + ("..." if len(title) > 60 else "")
+
+    _write_conversations(conversations)
+    return conversation

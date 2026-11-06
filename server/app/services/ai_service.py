@@ -24,6 +24,13 @@ class AIServiceError(Exception):
 
 async def generate_ai_response(message: str) -> str:
     """Send one message to Ollama's local chat API and return its reply."""
+    return await generate_ai_chat_response(
+        [{"role": "user", "content": message}]
+    )
+
+
+async def generate_ai_chat_response(messages: list[dict[str, str]]) -> str:
+    """Send a system prompt and chat history to Ollama and return its reply."""
     if not OLLAMA_BASE_URL or not OLLAMA_MODEL:
         raise AIServiceError(
             "The local AI service is not configured. Check its settings in server/.env.",
@@ -31,13 +38,14 @@ async def generate_ai_response(message: str) -> str:
         )
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
                 f"{OLLAMA_BASE_URL}/api/chat",
                 json={
                     "model": OLLAMA_MODEL,
-                    "messages": [{"role": "user", "content": message}],
+                    "messages": messages,
                     "stream": False,
+                    "options": {"num_predict": 160},
                 },
             )
             response.raise_for_status()

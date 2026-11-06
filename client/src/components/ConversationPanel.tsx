@@ -61,13 +61,6 @@ export function ConversationPanel({ message, messages, started, isSending, onMes
           </div>
         ) : (
           <div className="messages">
-            <div className="assistant-message">
-              <div className="mini-assistant"><Icon name="spark" size={14} /></div>
-              <div>
-                <strong>Stage 1 prototype</strong>
-                <p>Your messages appear here. AI replies will be available in a later stage.</p>
-              </div>
-            </div>
             {messages.map((item) => (
               item.role === 'user' ? (
                 <div className="user-message" key={item.id}>
@@ -89,6 +82,15 @@ export function ConversationPanel({ message, messages, started, isSending, onMes
                 </div>
               )
             ))}
+            {isSending && (
+              <div className="assistant-message" role="status" aria-label="Assistant is responding">
+                <div className="mini-assistant"><Icon name="spark" size={14} /></div>
+                <div>
+                  <strong>Retail+ Assistant</strong>
+                  <p className="typing-indicator">Thinking...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

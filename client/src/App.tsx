@@ -10,7 +10,7 @@ import {
   getConversation,
   getProducts,
   listConversations,
-  saveConversationMessage,
+  sendConversationChat,
   type Conversation,
   type Product,
 } from "./services/api";
@@ -167,27 +167,58 @@ function App() {
     const content = message.trim();
     if (!content || isSendingMessage || isCreatingConversation) return;
 
+    let conversationForRequest = activeConversation;
+    let pendingMessageId: string | null = null;
     setIsSendingMessage(true);
     setConversationError("");
     try {
-      let conversationId = activeConversationId;
-      if (!conversationId) {
-        const conversation = await createAndActivateConversation();
-        conversationId = conversation.id;
+      if (!conversationForRequest) {
+        conversationForRequest = await createAndActivateConversation();
       }
 
-      const updatedConversation = await saveConversationMessage(
-        conversationId,
-        "user",
+      const conversationId = conversationForRequest.id;
+      pendingMessageId = `pending-${Date.now()}`;
+      const pendingMessage = {
+        id: pendingMessageId,
+        role: "user" as const,
         content,
+        timestamp: new Date().toISOString(),
+      };
+      setActiveConversation((current) =>
+        current?.id === conversationId
+          ? { ...current, messages: [...current.messages, pendingMessage] }
+          : current,
       );
-      updateConversationList(updatedConversation);
-      setActiveConversation(updatedConversation);
       setMessage("");
       setStarted(true);
+
+      const result = await sendConversationChat(conversationId, content);
+      updateConversationList(result.conversation);
+      setActiveConversation((current) =>
+        current?.id === conversationId ? result.conversation : current,
+      );
     } catch (error) {
-      console.error("Failed to save message:", error);
-      setConversationError("Unable to save your message. Please try again.");
+      console.error("Failed to get an assistant response:", error);
+      if (conversationForRequest && pendingMessageId) {
+        const failedConversationId = conversationForRequest.id;
+        setActiveConversation((current) =>
+          current?.id === failedConversationId
+            ? {
+                ...current,
+                messages: current.messages.filter(
+                  (item) => item.id !== pendingMessageId,
+                ),
+              }
+            : current,
+        );
+        setStarted(conversationForRequest.messages.length > 0);
+      }
+      setConversationError(
+        error instanceof Error
+          ? error.message
+          : "Unable to get an assistant response. Please try again.",
+      );
+      setMessage(content);
     } finally {
       setIsSendingMessage(false);
     }
@@ -218,7 +249,7 @@ function App() {
               message={message}
               messages={activeConversation?.messages ?? []}
               started={started}
-              isSending={isSendingMessage || isCreatingConversation}
+              isSending={isSendingMessage}
               error={conversationError}
               onMessageChange={setMessage}
               onSend={() => void sendMessage()}

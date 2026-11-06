@@ -88,5 +88,49 @@
         "timestamp": "2026-11-06T20:40:08.432535+00:00"
       }
     ]
+  },
+  {
+    "id": "e608f40d-9433-4294-984a-6e3e0f4b5a6e",
+    "title": "hi i run a grocery store",
+    "created_at": "2026-11-06T21:40:58.309704+00:00",
+    "updated_at": "2026-11-06T21:42:49.307805+00:00",
+    "messages": [
+      {
+        "id": "0f00569b-d7ea-4260-8bb1-0ae4a69b80aa",
+        "role": "user",
+        "content": "hi i run a grocery store",
+        "timestamp": "2026-11-06T21:41:19.198181+00:00"
+      },
+      {
+        "id": "cca24892-4912-42c2-9de5-a9eb9f199cd1",
+        "role": "assistant",
+        "content": "Hi there! Welcome to Retail+. I'd be happy to help you with any questions or concerns you have about our products. What can I assist you with today? Are you looking for product recommendations, pricing information, or something else?",
+        "timestamp": "2026-11-06T21:41:19.198181+00:00"
+      },
+      {
+        "id": "e024ee1e-806c-494f-8500-0ede5fec85b1",
+        "role": "user",
+        "content": "What is the price of Parle-G?",
+        "timestamp": "2026-11-06T21:41:52.048302+00:00"
+      },
+      {
+        "id": "6ef9c806-967f-45a3-b53a-44e620ab1a74",
+        "role": "assistant",
+        "content": "The price of Parle-G is 10 rupees per packet.",
+        "timestamp": "2026-11-06T21:41:52.048302+00:00"
+      },
+      {
+        "id": "ed2b15dd-d73d-4378-8983-6320dcf6a96e",
+        "role": "user",
+        "content": "What is the price of classic salt?",
+        "timestamp": "2026-11-06T21:42:49.307805+00:00"
+      },
+      {
+        "id": "b5b64fbc-81c5-4a0b-ab26-e13c59f0c124",
+        "role": "assistant",
+        "content": "The price of Classic Salt (by Tata Salt) is 28 rupees per 1 kg pack.",
+        "timestamp": "2026-11-06T21:42:49.307805+00:00"
+      }
+    ]
   }
 ]

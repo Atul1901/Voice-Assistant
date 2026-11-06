@@ -17,6 +17,12 @@ export interface Conversation {
   messages: ConversationMessage[];
 }
 
+export interface ConversationChatResponse {
+  conversation: Conversation;
+  user_message: ConversationMessage;
+  assistant_message: ConversationMessage;
+}
+
 async function readResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let detail = "The request could not be completed. Please try again.";
@@ -53,20 +59,19 @@ export async function getConversation(
   return readResponse<Conversation>(response);
 }
 
-export async function saveConversationMessage(
+export async function sendConversationChat(
   conversationId: string,
-  role: MessageRole,
-  content: string,
-): Promise<Conversation> {
+  message: string,
+): Promise<ConversationChatResponse> {
   const response = await fetch(
-    `${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/messages`,
+    `${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/chat`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role, content }),
+      body: JSON.stringify({ message }),
     },
   );
-  return readResponse<Conversation>(response);
+  return readResponse<ConversationChatResponse>(response);
 }
 
 export async function getBackendMessage() {
