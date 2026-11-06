@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query
 from fastapi import HTTPException
 
-from app.routes import health
+from app.routes import conversations, health
 
 app = FastAPI(title="Retailer AI Assistant API", description="Stage 1 API for the FMCG retailer assistant prototype.", version="0.1.0")
 
@@ -88,3 +88,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/api")
+app.include_router(conversations.router, prefix="/api")

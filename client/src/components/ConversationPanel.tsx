@@ -1,16 +1,18 @@
 import type { KeyboardEvent } from 'react'
 import { Icon } from './Icon'
+import type { ConversationMessage } from '../services/api'
 
 interface ConversationPanelProps {
   message: string
-  messages: string[]
+  messages: ConversationMessage[]
   started: boolean
+  isSending: boolean
   onMessageChange: (value: string) => void
   onSend: () => void
   onStart: () => void
 }
 
-export function ConversationPanel({ message, messages, started, onMessageChange, onSend, onStart }: ConversationPanelProps) {
+export function ConversationPanel({ message, messages, started, isSending, onMessageChange, onSend, onStart }: ConversationPanelProps) {
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -56,8 +58,18 @@ export function ConversationPanel({ message, messages, started, onMessageChange,
                 <p>Your messages appear here. AI replies will be available in a later stage.</p>
               </div>
             </div>
-            {messages.map((text, index) => (
-              <div className="user-message" key={`${index}-${text}`}>{text}</div>
+            {messages.map((item) => (
+              item.role === 'user' ? (
+                <div className="user-message" key={item.id}>{item.content}</div>
+              ) : (
+                <div className="assistant-message" key={item.id}>
+                  <div className="mini-assistant"><Icon name="spark" size={14} /></div>
+                  <div>
+                    <strong>Retail+ Assistant</strong>
+                    <p>{item.content}</p>
+                  </div>
+                </div>
+              )
             ))}
           </div>
         )}
@@ -85,14 +97,14 @@ export function ConversationPanel({ message, messages, started, onMessageChange,
               className="send-button"
               aria-label="Send message"
               onClick={onSend}
-              disabled={!message.trim()}
+              disabled={!message.trim() || isSending}
             >
-              <Icon name="send" size={17} />
+              {isSending ? '...' : <Icon name="send" size={17} />}
             </button>
           </div>
         </div>
         <div className="composer-note">
-          <span><span className="tiny-lock">*</span> Messages are only stored in this page for now</span>
+          <span><span className="tiny-lock">*</span> Messages are saved to your conversation history</span>
           <span>Press <kbd>Enter</kbd> to send</span>
         </div>
       </div>
@@ -100,9 +112,9 @@ export function ConversationPanel({ message, messages, started, onMessageChange,
         <span className="footer-status">
           <i /> {started ? 'Conversation in progress' : 'Ready when you are'}
         </span>
-        <button className="start-button" onClick={onStart} disabled={started}>
+        <button className="start-button" onClick={onStart} disabled={started || isSending}>
           <Icon name="spark" size={16} />
-          {started ? 'Conversation started' : 'Start conversation'}
+          {started ? 'Conversation started' : isSending ? 'Saving...' : 'Start conversation'}
         </button>
       </div>
     </section>

@@ -1,1 +1,1 @@
-"""Reserved for JSON-backed storage added in a later stage."""
+"""JSON files used as the prototype's data store."""

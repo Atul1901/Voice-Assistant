@@ -40,7 +40,7 @@ export function SummaryPanel({ started }: { started: boolean }) {
       </div>
       <div className="privacy-note">
         <span className="privacy-check">&#10003;</span>
-        <span>Conversation messages currently stay in this browser session.</span>
+        <span>Conversation messages are saved to your conversation history.</span>
       </div>
     </aside>
   )

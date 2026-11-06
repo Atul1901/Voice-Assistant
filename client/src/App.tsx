@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
-import { ConversationPanel } from "./components/ConversationPanel";
+import { ChatWorkspace } from "./components/ChatWorkspace";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { HistoryView } from "./components/HistoryView";
 import { MetricCard, type Metric } from "./components/MetricCard";
 import { Sidebar, type PageName } from "./components/Sidebar";
-import { SummaryPanel } from "./components/SummaryPanel";
 import { Topbar } from "./components/Topbar";
-import { getProducts, type Product } from "./services/api";
+import {
+  createConversation,
+  getConversation,
+  getProducts,
+  listConversations,
+  saveConversationMessage,
+  type Conversation,
+  type Product,
+} from "./services/api";
 import { ProductList } from "./components/ProductList";
 
 const metrics: Metric[] = [
@@ -41,9 +48,33 @@ function App() {
   const [activePage, setActivePage] = useState<PageName>("Dashboard");
   const [message, setMessage] = useState("");
   const [started, setStarted] = useState(false);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Conversation["messages"]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [loadingConversationId, setLoadingConversationId] = useState<string | null>(null);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [conversationError, setConversationError] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [productError, setProductError] = useState("");
+
+  useEffect(() => {
+    async function loadConversations() {
+      try {
+        const savedConversations = await listConversations();
+        setConversations(savedConversations);
+      } catch (error) {
+        console.error("Failed to load conversations:", error);
+        setConversationError("Unable to load conversation history.");
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    }
+
+    loadConversations();
+  }, []);
+
   useEffect(() => {
     async function loadProducts() {
       try {
@@ -58,67 +89,172 @@ function App() {
     loadProducts();
   }, []);
 
-  function startNewConversation() {
+  function updateConversationList(conversation: Conversation) {
+    setConversations((current) => [
+      conversation,
+      ...current.filter((item) => item.id !== conversation.id),
+    ]);
+  }
+
+  const activeConversation = conversations.find(
+    (conversation) => conversation.id === activeConversationId,
+  );
+
+  async function createAndActivateConversation(): Promise<Conversation> {
+    const conversation = await createConversation();
+    updateConversationList(conversation);
+    setActiveConversationId(conversation.id);
+    setMessages(conversation.messages);
+    return conversation;
+  }
+
+  async function startNewConversation() {
+    setActivePage("New Conversation");
+    setActiveConversationId(null);
     setMessages([]);
     setMessage("");
     setStarted(false);
-    setActivePage("New Conversation");
+    setConversationError("");
+    setIsCreatingConversation(true);
+
+    try {
+      await createAndActivateConversation();
+    } catch (error) {
+      console.error("Failed to create conversation:", error);
+      setConversationError("Unable to start a conversation. Please try again.");
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  }
+
+  async function startConversation() {
+    if (isCreatingConversation) return;
+
+    setConversationError("");
+    setIsCreatingConversation(true);
+    try {
+      if (!activeConversationId) {
+        await createAndActivateConversation();
+      }
+      setStarted(true);
+    } catch (error) {
+      console.error("Failed to start conversation:", error);
+      setConversationError("Unable to start a conversation. Please try again.");
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  }
+
+  async function selectConversation(conversationId: string) {
+    setLoadingConversationId(conversationId);
+    setConversationError("");
+    try {
+      const conversation = await getConversation(conversationId);
+      updateConversationList(conversation);
+      setActiveConversationId(conversation.id);
+      setMessages(conversation.messages);
+      setMessage("");
+      setStarted(conversation.messages.length > 0);
+      setActivePage("New Conversation");
+    } catch (error) {
+      console.error("Failed to load conversation:", error);
+      setConversationError("Unable to load this conversation. Please try again.");
+    } finally {
+      setLoadingConversationId(null);
+    }
   }
 
   function navigate(page: PageName) {
-    if (page === "New Conversation") startNewConversation();
+    if (page === "New Conversation") void startNewConversation();
     else setActivePage(page);
   }
 
-  function sendMessage() {
+  async function sendMessage() {
     const content = message.trim();
-    if (!content) return;
-    setMessages((current) => [...current, content]);
-    setMessage("");
-    setStarted(true);
+    if (!content || isSendingMessage || isCreatingConversation) return;
+
+    setIsSendingMessage(true);
+    setConversationError("");
+    try {
+      let conversationId = activeConversationId;
+      if (!conversationId) {
+        const conversation = await createAndActivateConversation();
+        conversationId = conversation.id;
+      }
+
+      const updatedConversation = await saveConversationMessage(
+        conversationId,
+        "user",
+        content,
+      );
+      updateConversationList(updatedConversation);
+      setActiveConversationId(updatedConversation.id);
+      setMessages(updatedConversation.messages);
+      setMessage("");
+      setStarted(true);
+    } catch (error) {
+      console.error("Failed to save message:", error);
+      setConversationError("Unable to save your message. Please try again.");
+    } finally {
+      setIsSendingMessage(false);
+    }
   }
 
   return (
     <div className="app-shell">
-      <Sidebar activePage={activePage} historyCount={0} onNavigate={navigate} />
+      <Sidebar
+        activePage={activePage}
+        historyCount={conversations.length}
+        onNavigate={navigate}
+      />
       <main className="main-content">
         <Topbar page={activePage} />
-        {activePage === "Conversation History" ? (
-          <div className="page-wrap">
-            <HistoryView onNewConversation={startNewConversation} />
-          </div>
-        ) : (
-          <div className="page-wrap">
-            <DashboardHeader onNewConversation={startNewConversation} />
-            <section className="stats-grid" aria-label="Business overview">
-              {metrics.map((metric) => (
-                <MetricCard key={metric.label} metric={metric} />
-              ))}
-            </section>
-            <ProductList products={products} error={productError} />
-            <div className="content-grid">
-              <ConversationPanel
-                message={message}
-                messages={messages}
-                started={started}
-                onMessageChange={setMessage}
-                onSend={sendMessage}
-                onStart={() => setStarted(true)}
+        <div className="page-wrap">
+          {activePage === "Conversation History" ? (
+            <HistoryView
+              conversations={conversations}
+              isLoading={isLoadingConversations}
+              loadingConversationId={loadingConversationId}
+              error={conversationError}
+              onNewConversation={() => void startNewConversation()}
+              onSelectConversation={(id) => void selectConversation(id)}
+            />
+          ) : activePage === "New Conversation" ? (
+            <ChatWorkspace
+              title={activeConversation?.title ?? "New conversation"}
+              message={message}
+              messages={messages}
+              started={started}
+              isSending={isSendingMessage || isCreatingConversation}
+              error={conversationError}
+              onMessageChange={setMessage}
+              onSend={() => void sendMessage()}
+              onStart={() => void startConversation()}
+            />
+          ) : (
+            <>
+              <DashboardHeader
+                onNewConversation={() => void startNewConversation()}
               />
-              <SummaryPanel started={started} />
-            </div>
-            <footer className="page-footer">
-              <span>
-                Retail+ <span className="footer-dot">|</span> Your partner in
-                growth
-              </span>
-              <span>
-                Need a hand?{" "}
-                <a href="mailto:support@example.com">Contact support</a>
-              </span>
-            </footer>
-          </div>
-        )}
+              <section className="stats-grid" aria-label="Business overview">
+                {metrics.map((metric) => (
+                  <MetricCard key={metric.label} metric={metric} />
+                ))}
+              </section>
+              <ProductList products={products} error={productError} />
+              <footer className="page-footer">
+                <span>
+                  Retail+ <span className="footer-dot">|</span> Your partner in
+                  growth
+                </span>
+                <span>
+                  Need a hand?{" "}
+                  <a href="mailto:support@example.com">Contact support</a>
+                </span>
+              </footer>
+            </>
+          )}
+        </div>
       </main>
     </div>
   );
