@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Query
 
 from app.routes import health
 
@@ -25,6 +26,28 @@ def get_products():
     return {
         "total": len(products),
         "products": products
+    }
+
+@app.get("/api/products/search")
+def search_products(query: str = Query(..., min_length=1)):
+    products_file = Path(__file__).parent / "data" / "products.json"
+
+    with open(products_file, "r", encoding="utf-8") as file:
+        products = json.load(file)
+
+    search_term = query.lower()
+
+    results = [
+        product for product in products
+        if search_term in product["name"].lower()
+        or search_term in product["brand"].lower()
+        or search_term in product["category"].lower()
+    ]
+
+    return {
+        "query": query,
+        "total": len(results),
+        "products": results
     }
 
 # Vite's local development origin. Add other frontend origins here as needed.

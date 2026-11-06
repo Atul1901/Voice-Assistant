@@ -6,7 +6,12 @@ import { MetricCard, type Metric } from "./components/MetricCard";
 import { Sidebar, type PageName } from "./components/Sidebar";
 import { SummaryPanel } from "./components/SummaryPanel";
 import { Topbar } from "./components/Topbar";
-import { getBackendMessage } from "../src/services/api";
+import {
+  getBackendMessage,
+  getProducts,
+  type Product,
+} from "../src/services/api";
+import { ProductList } from "./components/ProductList";
 
 const metrics: Metric[] = [
   {
@@ -42,7 +47,8 @@ function App() {
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [backendMessage, setBackendMessage] = useState("");
-
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productError, setProductError] = useState("");
   useEffect(() => {
     async function checkBackend() {
       try {
@@ -55,6 +61,20 @@ function App() {
     }
 
     checkBackend();
+  }, []);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (error) {
+        console.error("Failed to load products:", error);
+        setProductError("Unable to load products");
+      }
+    }
+
+    loadProducts();
   }, []);
 
   function startNewConversation() {
@@ -96,6 +116,7 @@ function App() {
                 <MetricCard key={metric.label} metric={metric} />
               ))}
             </section>
+            <ProductList products={products} error={productError} />
             <div className="content-grid">
               <ConversationPanel
                 message={message}
