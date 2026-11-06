@@ -6,11 +6,7 @@ import { MetricCard, type Metric } from "./components/MetricCard";
 import { Sidebar, type PageName } from "./components/Sidebar";
 import { SummaryPanel } from "./components/SummaryPanel";
 import { Topbar } from "./components/Topbar";
-import {
-  getBackendMessage,
-  getProducts,
-  type Product,
-} from "../src/services/api";
+import { getProducts, type Product } from "./services/api";
 import { ProductList } from "./components/ProductList";
 
 const metrics: Metric[] = [
@@ -46,23 +42,8 @@ function App() {
   const [message, setMessage] = useState("");
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
-  const [backendMessage, setBackendMessage] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [productError, setProductError] = useState("");
-  useEffect(() => {
-    async function checkBackend() {
-      try {
-        const data = await getBackendMessage();
-        setBackendMessage(data.message);
-      } catch (error) {
-        console.error("Backend connection failed:", error);
-        setBackendMessage("Unable to connect to backend");
-      }
-    }
-
-    checkBackend();
-  }, []);
-
   useEffect(() => {
     async function loadProducts() {
       try {
@@ -105,11 +86,9 @@ function App() {
         {activePage === "Conversation History" ? (
           <div className="page-wrap">
             <HistoryView onNewConversation={startNewConversation} />
-            {/* <p>Backend Status: {backendMessage}</p> */}
           </div>
         ) : (
           <div className="page-wrap">
-            {/* <p>Backend Status: {backendMessage}</p> */}
             <DashboardHeader onNewConversation={startNewConversation} />
             <section className="stats-grid" aria-label="Business overview">
               {metrics.map((metric) => (

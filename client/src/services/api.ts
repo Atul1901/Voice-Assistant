@@ -47,3 +47,26 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
   return data.products;
 }
+
+export interface ProductAvailability {
+  product_name: string;
+  available: boolean;
+  stock: number;
+  unit: string;
+  price: number;
+  scheme: string;
+}
+
+export async function checkProductAvailability(
+  productId: string,
+): Promise<ProductAvailability> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/products/${productId}/availability`,
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to check product availability");
+  }
+
+  return response.json();
+}

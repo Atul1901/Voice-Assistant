@@ -17,15 +17,15 @@ py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 5000
 ```
 
-If PowerShell blocks activation scripts for this terminal, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, then activate again. The API is at `http://127.0.0.1:8000`; interactive API docs are at `http://127.0.0.1:8000/docs`.
+If PowerShell blocks activation scripts for this terminal, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, then activate again. The API is at `http://127.0.0.1:5000`; interactive API docs are at `http://127.0.0.1:5000/docs`.
 
 In a second terminal, check health:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/health
+Invoke-RestMethod http://127.0.0.1:5000/api/health
 ```
 
 Expected response:
