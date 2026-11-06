@@ -1,0 +1,57 @@
+[
+  {
+    "id": "P001",
+    "name": "Classic Salt",
+    "brand": "Tata Salt",
+    "category": "Staples",
+    "pack_size": "1 kg",
+    "price": 28,
+    "stock": 150,
+    "unit": "pack",
+    "scheme": "Buy 10 packs and get 1 free"
+  },
+  {
+    "id": "P002",
+    "name": "Parle-G",
+    "brand": "Parle",
+    "category": "Biscuits",
+    "pack_size": "100 g",
+    "price": 10,
+    "stock": 200,
+    "unit": "packet",
+    "scheme": "Buy 20 packets and get 2 free"
+  },
+  {
+    "id": "P003",
+    "name": "Maggi 2-Minute Noodles",
+    "brand": "Maggi",
+    "category": "Instant Food",
+    "pack_size": "70 g",
+    "price": 14,
+    "stock": 100,
+    "unit": "packet",
+    "scheme": "No active scheme"
+  },
+  {
+    "id": "P004",
+    "name": "Amul Taaza Milk",
+    "brand": "Amul",
+    "category": "Dairy",
+    "pack_size": "500 ml",
+    "price": 29,
+    "stock": 80,
+    "unit": "packet",
+    "scheme": "Buy 10 packets and get 1 free"
+  },
+  {
+    "id": "P005",
+    "name": "Dove Soap",
+    "brand": "Dove",
+    "category": "Personal Care",
+    "pack_size": "100 g",
+    "price": 55,
+    "stock": 60,
+    "unit": "bar",
+    "scheme": "No active scheme"
+  }
+]
