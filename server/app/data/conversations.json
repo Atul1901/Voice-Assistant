@@ -74,5 +74,19 @@
         "timestamp": "2026-11-06T20:32:07.859516+00:00"
       }
     ]
+  },
+  {
+    "id": "1e26de2d-b499-4b47-8d4b-43b26aa79c47",
+    "title": "what is the price of maggie noodles",
+    "created_at": "2026-11-06T20:39:54.445373+00:00",
+    "updated_at": "2026-11-06T20:40:08.432535+00:00",
+    "messages": [
+      {
+        "id": "1b884769-3389-4d8c-a79a-3d923ceef878",
+        "role": "user",
+        "content": "what is the price of maggie noodles",
+        "timestamp": "2026-11-06T20:40:08.432535+00:00"
+      }
+    ]
   }
 ]

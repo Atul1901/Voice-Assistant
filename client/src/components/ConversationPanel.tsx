@@ -13,6 +13,16 @@ interface ConversationPanelProps {
 }
 
 export function ConversationPanel({ message, messages, started, isSending, onMessageChange, onSend, onStart }: ConversationPanelProps) {
+  function formatTimestamp(value: string) {
+    const timestamp = new Date(value)
+    if (Number.isNaN(timestamp.getTime())) return ''
+
+    return new Intl.DateTimeFormat('en-IN', {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(timestamp)
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -60,13 +70,21 @@ export function ConversationPanel({ message, messages, started, isSending, onMes
             </div>
             {messages.map((item) => (
               item.role === 'user' ? (
-                <div className="user-message" key={item.id}>{item.content}</div>
+                <div className="user-message" key={item.id}>
+                  <span>{item.content}</span>
+                  <time className="message-timestamp" dateTime={item.timestamp}>
+                    {formatTimestamp(item.timestamp)}
+                  </time>
+                </div>
               ) : (
                 <div className="assistant-message" key={item.id}>
                   <div className="mini-assistant"><Icon name="spark" size={14} /></div>
                   <div>
                     <strong>Retail+ Assistant</strong>
                     <p>{item.content}</p>
+                    <time className="message-timestamp" dateTime={item.timestamp}>
+                      {formatTimestamp(item.timestamp)}
+                    </time>
                   </div>
                 </div>
               )

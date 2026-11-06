@@ -48,8 +48,7 @@ function App() {
   const [activePage, setActivePage] = useState<PageName>("Dashboard");
   const [message, setMessage] = useState("");
   const [started, setStarted] = useState(false);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Conversation["messages"]>([]);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [loadingConversationId, setLoadingConversationId] = useState<string | null>(null);
@@ -96,22 +95,18 @@ function App() {
     ]);
   }
 
-  const activeConversation = conversations.find(
-    (conversation) => conversation.id === activeConversationId,
-  );
+  const activeConversationId = activeConversation?.id ?? null;
 
   async function createAndActivateConversation(): Promise<Conversation> {
     const conversation = await createConversation();
     updateConversationList(conversation);
-    setActiveConversationId(conversation.id);
-    setMessages(conversation.messages);
+    setActiveConversation(conversation);
     return conversation;
   }
 
   async function startNewConversation() {
     setActivePage("New Conversation");
-    setActiveConversationId(null);
-    setMessages([]);
+    setActiveConversation(null);
     setMessage("");
     setStarted(false);
     setConversationError("");
@@ -151,8 +146,7 @@ function App() {
     try {
       const conversation = await getConversation(conversationId);
       updateConversationList(conversation);
-      setActiveConversationId(conversation.id);
-      setMessages(conversation.messages);
+      setActiveConversation(conversation);
       setMessage("");
       setStarted(conversation.messages.length > 0);
       setActivePage("New Conversation");
@@ -188,8 +182,7 @@ function App() {
         content,
       );
       updateConversationList(updatedConversation);
-      setActiveConversationId(updatedConversation.id);
-      setMessages(updatedConversation.messages);
+      setActiveConversation(updatedConversation);
       setMessage("");
       setStarted(true);
     } catch (error) {
@@ -223,7 +216,7 @@ function App() {
             <ChatWorkspace
               title={activeConversation?.title ?? "New conversation"}
               message={message}
-              messages={messages}
+              messages={activeConversation?.messages ?? []}
               started={started}
               isSending={isSendingMessage || isCreatingConversation}
               error={conversationError}
