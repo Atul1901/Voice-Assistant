@@ -9,6 +9,19 @@ from uuid import uuid4
 DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "conversations.json"
 
 
+def empty_requirements() -> dict:
+    """Return the default structured requirements for a conversation."""
+    return {
+        "interested_products": [],
+        "requested_quantity": None,
+        "purchase_intent": "not specified",
+        "follow_up_required": False,
+        "follow_up_date": None,
+        "follow_up_notes": None,
+        "additional_requirements": [],
+    }
+
+
 def _read_conversations() -> list[dict]:
     """Load all conversations from disk."""
     with DATA_FILE.open("r", encoding="utf-8") as file:
@@ -16,6 +29,15 @@ def _read_conversations() -> list[dict]:
 
     if not isinstance(conversations, list):
         raise ValueError("Conversation data must be a JSON list")
+
+    # Older JSON records predate structured requirement capture.
+    for conversation in conversations:
+        if not isinstance(conversation.get("requirements"), dict):
+            conversation["requirements"] = empty_requirements()
+        else:
+            defaults = empty_requirements()
+            for key, value in defaults.items():
+                conversation["requirements"].setdefault(key, value)
 
     return conversations
 
@@ -50,6 +72,7 @@ def create_conversation() -> dict:
         "created_at": now,
         "updated_at": now,
         "messages": [],
+        "requirements": empty_requirements(),
     }
     conversations.append(conversation)
     _write_conversations(conversations)
@@ -109,6 +132,7 @@ def add_exchange(
     conversation_id: str,
     user_content: str,
     assistant_content: str,
+    requirements: dict | None = None,
 ) -> dict | None:
     """Save a user message and its assistant reply in one JSON write."""
     conversations = _read_conversations()
@@ -134,6 +158,8 @@ def add_exchange(
     }
     conversation["messages"].extend([user_message, assistant_message])
     conversation["updated_at"] = now
+    if requirements is not None:
+        conversation["requirements"] = requirements
 
     if conversation["title"] == "New conversation":
         title = " ".join(user_content.split())

@@ -1,6 +1,9 @@
 """HTTP endpoints for creating and managing conversations."""
 
+import asyncio
 import json
+import logging
+from datetime import date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -8,10 +11,17 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
 from app.services import conversation_service
-from app.services.ai_service import AIServiceError, generate_ai_chat_response
+from app.services.ai_service import (
+    AIServiceError,
+    ExtractedRequirements,
+    extract_requirements,
+    generate_ai_chat_response,
+)
+from app.services.requirement_service import merge_requirements
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 PRODUCTS_FILE = Path(__file__).resolve().parents[1] / "data" / "products.json"
+logger = logging.getLogger(__name__)
 
 
 class MessageCreate(BaseModel):
@@ -34,12 +44,33 @@ class MessageResponse(BaseModel):
     timestamp: str
 
 
+class InterestedProductResponse(BaseModel):
+    product_name: str
+    product_id: str
+
+
+class RequestedQuantityResponse(BaseModel):
+    quantity: float
+    unit: str
+
+
+class ConversationRequirementsResponse(BaseModel):
+    interested_products: list[InterestedProductResponse] = Field(default_factory=list)
+    requested_quantity: RequestedQuantityResponse | None = None
+    purchase_intent: Literal["interested", "confirmed", "not specified"] = "not specified"
+    follow_up_required: bool = False
+    follow_up_date: date | None = None
+    follow_up_notes: str | None = None
+    additional_requirements: list[str] = Field(default_factory=list)
+
+
 class ConversationResponse(BaseModel):
     id: str
     title: str
     created_at: str
     updated_at: str
     messages: list[MessageResponse]
+    requirements: ConversationRequirementsResponse
 
 
 class ChatRequest(BaseModel):
@@ -139,26 +170,63 @@ async def chat(conversation_id: str, request: ChatRequest) -> dict:
         "listed unit):\n"
         f"{json.dumps(products, ensure_ascii=False)}"
     )
-    ollama_messages = [{"role": "system", "content": system_instructions}]
-    ollama_messages.extend(
+    conversation_messages = [
         {"role": item["role"], "content": item["content"]}
         for item in conversation["messages"]
         if item.get("role") in ("user", "assistant")
+    ]
+    latest_user_message = {"role": "user", "content": request.message}
+    ollama_messages = [
+        {"role": "system", "content": system_instructions},
+        *conversation_messages,
+        latest_user_message,
+    ]
+    requirement_messages = [*conversation_messages, latest_user_message]
+    reference_date = datetime.now().astimezone().date()
+    extraction_task = asyncio.create_task(
+        asyncio.wait_for(
+            extract_requirements(requirement_messages, products, reference_date),
+            timeout=75.0,
+        )
     )
-    ollama_messages.append({"role": "user", "content": request.message})
 
     try:
         assistant_text = await generate_ai_chat_response(ollama_messages)
     except AIServiceError as error:
+        extraction_task.cancel()
+        await asyncio.gather(extraction_task, return_exceptions=True)
         raise HTTPException(
             status_code=error.status_code,
             detail=str(error),
         ) from None
 
+    existing_requirements = conversation.get(
+        "requirements",
+        conversation_service.empty_requirements(),
+    )
+    extracted_requirements = ExtractedRequirements()
+    try:
+        extracted_requirements = await extraction_task
+    except Exception as error:
+        # Requirement capture is optional: the generated chat reply still succeeds.
+        logger.warning(
+            "Requirement extraction failed; preserving existing requirements (%s).",
+            type(error).__name__,
+        )
+
+    merged_requirements = merge_requirements(
+        existing_requirements,
+        extracted_requirements.model_dump(mode="json"),
+        products,
+        requirement_messages,
+        reference_date,
+    )
+
     updated_conversation = conversation_service.add_exchange(
         conversation_id=conversation_id,
         user_content=request.message,
         assistant_content=assistant_text,
+        requirements=merged_requirements,
     )
     if updated_conversation is None:
         raise HTTPException(

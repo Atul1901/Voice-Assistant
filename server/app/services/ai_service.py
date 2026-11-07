@@ -1,10 +1,13 @@
 """Local Ollama-backed text generation for the retailer assistant."""
 
 import os
+from datetime import date
 from pathlib import Path
+from typing import Literal
 
 import httpx
 from dotenv import load_dotenv
+from pydantic import BaseModel, ConfigDict, Field
 
 # Load the server's .env file explicitly so startup works from any directory.
 SERVER_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
@@ -12,6 +15,21 @@ load_dotenv(SERVER_ENV_FILE)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+
+
+class ExtractedRequirements(BaseModel):
+    """Only the structured fields the retailer assistant is allowed to capture."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    interested_products: list[str] = Field(default_factory=list)
+    requested_quantity: float | None = Field(default=None, gt=0)
+    requested_unit: str | None = None
+    purchase_intent: Literal["interested", "confirmed", "not specified"] = "not specified"
+    follow_up_required: bool | None = None
+    follow_up_date: date | None = None
+    follow_up_notes: str | None = None
+    additional_requirements: list[str] = Field(default_factory=list)
 
 
 class AIServiceError(Exception):
@@ -29,8 +47,11 @@ async def generate_ai_response(message: str) -> str:
     )
 
 
-async def generate_ai_chat_response(messages: list[dict[str, str]]) -> str:
-    """Send a system prompt and chat history to Ollama and return its reply."""
+async def generate_ai_chat_response(
+    messages: list[dict[str, str]],
+    response_format: dict | None = None,
+) -> str:
+    """Send chat messages to Ollama and return its reply."""
     if not OLLAMA_BASE_URL or not OLLAMA_MODEL:
         raise AIServiceError(
             "The local AI service is not configured. Check its settings in server/.env.",
@@ -39,14 +60,19 @@ async def generate_ai_chat_response(messages: list[dict[str, str]]) -> str:
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
+            request_body = {
+                "model": OLLAMA_MODEL,
+                "messages": messages,
+                "stream": False,
+                "options": {"num_predict": 160 if response_format is None else 192},
+            }
+            if response_format is not None:
+                request_body["format"] = response_format
+                request_body["options"]["temperature"] = 0
+
             response = await client.post(
                 f"{OLLAMA_BASE_URL}/api/chat",
-                json={
-                    "model": OLLAMA_MODEL,
-                    "messages": messages,
-                    "stream": False,
-                    "options": {"num_predict": 160},
-                },
+                json=request_body,
             )
             response.raise_for_status()
             result = response.json()
@@ -96,3 +122,42 @@ async def generate_ai_chat_response(messages: list[dict[str, str]]) -> str:
         )
 
     return generated_text.strip()
+
+
+async def extract_requirements(
+    conversation_messages: list[dict[str, str]],
+    products: list[dict],
+    reference_date: date,
+) -> ExtractedRequirements:
+    """Extract explicitly stated retailer requirements from conversation history."""
+    product_names = [product.get("name", "") for product in products]
+    system_prompt = (
+        "Extract retailer business requirements from the conversation and return "
+        "only data supported by the retailer's messages. Use assistant messages "
+        "only to understand context; do not treat assistant claims as retailer "
+        "requirements. Never invent a product, quantity, unit, date, purchase "
+        "confirmation, or follow-up. For interested_products, return only exact "
+        "canonical product names from this catalogue: "
+        f"{product_names!r}. If a product is ambiguous or not in the catalogue, "
+        "omit it. Capture quantity and unit only when stated or clearly established "
+        "by the conversation. Set purchase_intent to 'confirmed' only when the "
+        "retailer explicitly confirms an order or purchase; use 'interested' for "
+        "clear interest without confirmation; otherwise use 'not specified'. "
+        "Set follow_up_required to true or false only when stated, otherwise null. "
+        "Resolve relative follow-up dates against this local calendar date: "
+        f"{reference_date.isoformat()}. Return follow_up_date as YYYY-MM-DD, or "
+        "null when no date is clearly stated. Keep follow_up_notes null unless "
+        "there are follow-up details beyond the date. Put quantity and its unit "
+        "in requested_quantity and requested_unit, never in "
+        "additional_requirements. additional_requirements must contain only "
+        "other explicit retailer requirements."
+    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        *conversation_messages,
+    ]
+    response_text = await generate_ai_chat_response(
+        messages,
+        response_format=ExtractedRequirements.model_json_schema(),
+    )
+    return ExtractedRequirements.model_validate_json(response_text)
